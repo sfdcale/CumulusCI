@@ -49,7 +49,12 @@ from cumulusci.cli.runtime import CliRuntime
 from cumulusci.cli.runtime import get_installed_version
 from cumulusci.cli.ui import CliTable, CROSSMARK, SimpleSalesforceUIHelpers
 from cumulusci.salesforce_api.utils import get_simple_salesforce_connection
-from cumulusci.utils import doc_task, document_flow, flow_ref_title_and_intro
+from cumulusci.utils import (
+    doc_task,
+    document_flow,
+    flow_ref_title_and_intro,
+    get_task_info_as_dict,
+)
 from cumulusci.utils import parse_api_datetime
 from cumulusci.utils import get_cci_upgrade_command
 from cumulusci.utils.git import current_branch
@@ -1499,16 +1504,20 @@ def flow_doc(runtime):
 
 @task.command(name="info", help="Displays information for a task")
 @click.argument("task_name")
+@click.option("--json", "print_json", is_flag=True, help="Print a json string")
 @pass_runtime(require_project=False, require_keychain=True)
-def task_info(runtime, task_name):
+def task_info(runtime, task_name, print_json):
     task_config = (
         runtime.project_config.get_task(task_name)
         if runtime.project_config is not None
         else runtime.universal_config.get_task(task_name)
     )
-
-    doc = doc_task(task_name, task_config).encode()
-    click.echo(rst2ansi(doc))
+    if print_json:
+        task_info_dict = get_task_info_as_dict(task_name, task_config)
+        click.echo(json.dumps(task_info_dict))
+    else:
+        doc = doc_task(task_name, task_config).encode()
+        click.echo(rst2ansi(doc))
 
 
 class RunTaskCommand(click.MultiCommand):
