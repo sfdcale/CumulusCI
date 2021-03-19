@@ -1125,8 +1125,11 @@ def org_info(runtime, org_name, print_json):
 
 @org.command(name="list", help="Lists all orgs in scope for the current project")
 @click.option("--plain", is_flag=True, help="Print the table using plain ascii.")
+@click.option(
+    "--json", "json_flag", is_flag=True, help="Output results in JSON format."
+)
 @pass_runtime(require_project=False, require_keychain=True)
-def org_list(runtime, plain):
+def org_list(runtime, json_flag, plain):
     plain = plain or runtime.universal_config.cli__plain_output
     header = ["Name", "Default", "Username", "Expires"]
     persistent_data = [header]
@@ -1134,6 +1137,7 @@ def org_list(runtime, plain):
     org_configs = {
         org: runtime.keychain.get_org(org) for org in runtime.keychain.list_orgs()
     }
+    json_data = {}
     rows_to_dim = []
     default_org_name, _ = runtime.keychain.get_default_org()
     for org, org_config in org_configs.items():
@@ -1151,6 +1155,11 @@ def org_list(runtime, plain):
                 [org_days, not org_config.active, org_config.config_name, domain]
             )
             scratch_data.append(row)
+            json_data[row[0]] = {
+                "isDefault": row[1],
+                "config": row[4],
+                "isScratch": True,
+            }
         else:
             username = org_config.config.get(
                 "username", org_config.userinfo__preferred_username
@@ -1158,6 +1167,11 @@ def org_list(runtime, plain):
             row.append(username)
             row.append(org_config.expires or "Unknown")
             persistent_data.append(row)
+            json_data[row[0]] = {"isDefault": row[1], "isScratch": False}
+
+    if json_flag:
+        click.echo(json.dumps(json_data))
+        return
 
     rows_to_dim = [row_index for row_index, row in enumerate(scratch_data) if row[3]]
     scratch_table = CliTable(
